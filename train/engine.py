@@ -18,16 +18,6 @@ from utils.data import FeatureDataset
 from utils.metrics import metrics, selection_score
 
 
-EXPERIMENTS = (
-    "full",
-    "scratch",
-    "no_con",
-    "no_mat",
-    "no_gen",
-    "no_shared_expert",
-    "no_gate",
-    "no_fusion_transformer",
-)
 def seed_everything(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -42,7 +32,6 @@ def model_config(
     output_hidden_states: bool,
     eeg_input_dim: int,
     eog_input_dim: int,
-    experiment: str = "full",
 ) -> Blip2QFormerConfig:
     return Blip2QFormerConfig(
         if_DDP=False,
@@ -61,9 +50,6 @@ def model_config(
         initializer_range=0.02,
         layer_norm_eps=1e-12,
         model_type="blip_2_qformer",
-        disable_shared_expert=experiment == "no_shared_expert",
-        disable_gate=experiment == "no_gate",
-        disable_fusion_transformer=experiment == "no_fusion_transformer",
     )
 
 
@@ -84,20 +70,13 @@ def pretrain(
         output_hidden_states=True,
         eeg_input_dim=dataset.eeg.shape[-1],
         eog_input_dim=dataset.eog.shape[-1],
-        experiment=args.experiment,
     )
-    loss_weights = {
-        "con": 0.0 if args.experiment == "no_con" else 1.0,
-        "mat": 0.0 if args.experiment == "no_mat" else 1.0,
-        "gen": 0.0 if args.experiment == "no_gen" else 1.0,
-    }
     model = PretrainModel(
         config,
         model_device=torch.device(args.device),
         seq_length=args.sequence_length,
         eeg_input_dim=dataset.eeg.shape[-1],
         eye_input_dim=dataset.eog.shape[-1],
-        loss_weights=loss_weights,
     ).to(args.device)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=args.pretrain_lr, weight_decay=args.weight_decay
@@ -171,19 +150,16 @@ def predict(model: FinetuneModel, loader: DataLoader, mode: str, device: str):
     return np.concatenate(all_y), np.concatenate(all_prob)
 
 
-def new_finetune_model(
+def build_finetune_model(
     mode: str,
-    pretrained_state: dict[str, torch.Tensor] | None,
     dataset: FeatureDataset,
     args: argparse.Namespace,
-    log_initialization: bool = True,
 ) -> FinetuneModel:
     config = model_config(
         args.sequence_length,
         output_hidden_states=False,
         eeg_input_dim=dataset.eeg.shape[-1],
         eog_input_dim=dataset.eog.shape[-1],
-        experiment=args.experiment,
     )
     model_mode = "eye" if mode == "eog" else mode
     model = FinetuneModel(
@@ -195,17 +171,22 @@ def new_finetune_model(
         n_class=2,
         mode=model_mode,
     ).to(args.device)
-    if pretrained_state is None:
-        if log_initialization:
-            print(f"{mode}: training from scratch", flush=True)
-    else:
-        loaded, backbone_loaded = load_pretrained_weights(model, pretrained_state)
-        if log_initialization:
-            print(
-                f"{mode}: transferred {loaded} tensors "
-                f"({backbone_loaded} backbone tensors)",
-                flush=True,
-            )
+    return model
+
+
+def new_finetune_model(
+    mode: str,
+    pretrained_state: dict[str, torch.Tensor],
+    dataset: FeatureDataset,
+    args: argparse.Namespace,
+) -> FinetuneModel:
+    model = build_finetune_model(mode, dataset, args)
+    loaded, backbone_loaded = load_pretrained_weights(model, pretrained_state)
+    print(
+        f"{mode}: transferred {loaded} tensors "
+        f"({backbone_loaded} backbone tensors)",
+        flush=True,
+    )
     return model
 
 
@@ -248,7 +229,7 @@ def train_finetune_epoch(
 
 def select_finetune_epoch(
     mode: str,
-    pretrained_state: dict[str, torch.Tensor] | None,
+    pretrained_state: dict[str, torch.Tensor],
     dataset: FeatureDataset,
     train_indices: np.ndarray,
     val_indices: np.ndarray,
@@ -303,7 +284,7 @@ def select_finetune_epoch(
 
 def fit_fixed_epochs(
     mode: str,
-    pretrained_state: dict[str, torch.Tensor] | None,
+    pretrained_state: dict[str, torch.Tensor],
     dataset: FeatureDataset,
     train_indices: np.ndarray,
     epochs: int,
@@ -337,9 +318,7 @@ def evaluate_finetune_state(
     test_indices: np.ndarray,
     args: argparse.Namespace,
 ) -> tuple[dict[str, float], np.ndarray, np.ndarray]:
-    model = new_finetune_model(
-        mode, None, dataset, args, log_initialization=False
-    )
+    model = build_finetune_model(mode, dataset, args)
     model.load_state_dict(state)
     test_loader = make_loader(dataset, test_indices, args.batch_size, shuffle=False)
     test_y, test_prob = predict(model, test_loader, mode, args.device)
