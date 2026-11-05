@@ -5,7 +5,6 @@ from pathlib import Path
 
 import torch
 
-from train.engine import EXPERIMENTS
 from train.trainer import run_subject_cv
 from utils.data import load_preprocessed_data
 
@@ -26,7 +25,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--validation-offset", type=int, default=2)
     parser.add_argument("--purge-boundary-windows", type=int, default=0)
     parser.add_argument("--modalities", default="multi,eeg,eog")
-    parser.add_argument("--experiment", choices=EXPERIMENTS, default="full")
     parser.add_argument(
         "--selection-metric",
         choices=("auroc", "f1", "acc", "composite"),
