@@ -1,7 +1,7 @@
 # FatigueGuard: Flexible Modality Learning with Adaptive Mixture-of-Experts for Physiological Driver Fatigue Detection
 
 <p align="center">
-    <img src="./img/framework.png" alt="Overview" width="800"/>
+    <img src="./img/overview.png" alt="Overview" width="800"/>
 </p>
 
 ## Abstract
