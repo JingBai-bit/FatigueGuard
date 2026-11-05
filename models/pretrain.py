@@ -34,15 +34,11 @@ class PretrainModel(nn.Module):
                  seq_length=5,
                  eeg_input_dim=310,
                  eye_input_dim=33,
-                 loss_weights=None,
                 ):
         super().__init__()
 
         self.config = model_config
         self.model_device = model_device
-        self.loss_weights = {"con": 1.0, "mat": 1.0, "gen": 1.0}
-        if loss_weights is not None:
-            self.loss_weights.update(loss_weights)
         embed_dim = self.config.hidden_size
 
         self.backbone = MultimodalBackbone(model_config)
@@ -136,11 +132,7 @@ class PretrainModel(nn.Module):
         )
 
         
-        #bypass fusion Transformer
-        if getattr(self.config, "disable_fusion_transformer", False):
-            last_hidden_state = con_output.last_hidden_state
-        else:
-            last_hidden_state = con_output.hidden_states[-2]
+        last_hidden_state = con_output.hidden_states[-2]
 
         eye_output = last_hidden_state[:, :self.seq_length, :]
         eeg_output = last_hidden_state[:, self.seq_length:, :]
@@ -277,11 +269,7 @@ class PretrainModel(nn.Module):
 
         # ===================== Total Loss ======================== #
 
-        loss = (
-            self.loss_weights["con"] * loss_con
-            + self.loss_weights["mat"] * loss_mat
-            + self.loss_weights["gen"] * lm_loss
-        )
+        loss = loss_con + loss_mat + lm_loss
         return loss, loss_con, loss_mat, lm_loss
         
     
