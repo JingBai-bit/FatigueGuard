@@ -12,7 +12,6 @@ FOLDS="all"                        # all, 1, or e.g. "1,3,5"
 VALIDATION_OFFSET=2
 PURGE_BOUNDARY_WINDOWS=0
 
-EXPERIMENT="full"
 MODALITIES="multi,eeg,eog"
 SELECTION_METRIC="acc"             # auroc, f1, acc, or composite
 PRETRAIN_EPOCHS=200
@@ -31,7 +30,7 @@ SAVE_CHECKPOINTS=1
 # 1: validate the NPZ interface and temporal folds without training.
 CHECK_DATA_ONLY=0
 
-GPU_ID="0"
+GPU_ID="1"
 DEVICE="cuda"                      # cuda, cuda:0, or cpu
 
 # ====================================================================
@@ -74,7 +73,6 @@ runner_args=(
   --folds "$FOLDS"
   --validation-offset "$VALIDATION_OFFSET"
   --purge-boundary-windows "$PURGE_BOUNDARY_WINDOWS"
-  --experiment "$EXPERIMENT"
   --modalities "$MODALITIES"
   --selection-metric "$SELECTION_METRIC"
   --pretrain-epochs "$PRETRAIN_EPOCHS"
