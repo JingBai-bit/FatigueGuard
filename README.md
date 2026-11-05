@@ -28,7 +28,7 @@ pip install -r requirements.txt
 
 ## Run
 
-Configure the experiment settings in `run.sh`:
+Set the dataset name, input file, output directory, fold configuration, training hyperparameters, and GPU ID at the top of run.sh:
 
 ```bash
 DATASET_NAME="DROZY"
