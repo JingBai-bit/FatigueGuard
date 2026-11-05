@@ -26,23 +26,6 @@ conda activate fuse
 pip install -r requirements.txt
 ```
 
-
-## Configuration
-
-For convenient use across different datasets, we provide a unified data interface. Please convert each dataset into a NumPy `.npz` file containing the following arrays:
-
-| Field | Shape | Description |
-| --- | --- | --- |
-| `eeg` | `[N, L, D_eeg]` | EEG sequence features |
-| `eog` | `[N, L, D_eog]` | EOG sequence features |
-| `y` | `[N]` | Binary labels: `0` for alert and `1` for fatigued |
-| `subject` | `[N]` | Integer subject identifiers |
-| `session` | `[N]` | Integer recording/session identifiers |
-| `sequence_start` | `[N]` | Start-window index of each sequence within its recording |
-
-`eeg` and `eog` must have the same number of samples and sequence length. All subjects contained in the file are included in the experiment.
-
-
 ## Run
 
 Set the dataset name, input file, output directory, fold configuration, training hyperparameters, and GPU ID at the top of `run.sh`:
