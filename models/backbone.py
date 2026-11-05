@@ -22,25 +22,12 @@ logger = logging.get_logger(__name__)
 
 
 class SeqFusion(nn.Module):
-    """Fuse a modality expert with the shared expert.
-
-    ``use_gate=False`` is the controlled gate ablation: both experts remain
-    active, but their outputs receive fixed equal weights instead of learned
-    token-wise weights.
-    """
-
-    def __init__(self, dim, use_gate=True):
+    def __init__(self, dim):
         super().__init__()
-        self.use_gate = use_gate
-        if use_gate:
-            self.weight = nn.Parameter(torch.randn(dim, 1))
-        else:
-            self.register_parameter("weight", None)
+        self.weight = nn.Parameter(torch.randn(dim, 1))
         self.softmax = nn.Softmax(1)
 
     def forward(self, seq1,seq2):
-        if not self.use_gate:
-            return 0.5 * (seq1 + seq2)
         o1 = seq1 @ self.weight #b seq 1
         o2 = seq2 @ self.weight
         o = torch.cat([o1, o2], dim=-1) #b seq 2
@@ -321,10 +308,7 @@ class Layer(nn.Module):
 
             self.intermediate_fusion = Intermediate(config)
             self.output_fusion = Output(config)
-            self.seq_fusion = SeqFusion(
-                config.hidden_size,
-                use_gate=not getattr(config, "disable_gate", False),
-            )
+            self.seq_fusion = SeqFusion(config.hidden_size)
 
     
     def forward(
@@ -390,10 +374,7 @@ class Layer(nn.Module):
                     self.seq_len_dim,
                     eeg_attention_output,
                 )
-                use_shared_expert = (
-                    not getattr(self.config, "disable_shared_expert", False)
-                    and (mode == 'mat' or mode == 'gen' or mode == 'ft')
-                )
+                use_shared_expert = mode == 'mat' or mode == 'gen' or mode == 'ft'
                 if use_shared_expert:
                     layer_output_fusion = apply_chunking_to_forward(   
                         self.feed_forward_chunk_fusion,
@@ -420,10 +401,7 @@ class Layer(nn.Module):
                     self.seq_len_dim,
                     attention_output,
                 )
-                use_shared_expert = (
-                    not getattr(self.config, "disable_shared_expert", False)
-                    and (mode == 'mat' or mode == 'gen' or mode == 'ft')
-                )
+                use_shared_expert = mode == 'mat' or mode == 'gen' or mode == 'ft'
                 if use_shared_expert:
                     layer_output_fusion = apply_chunking_to_forward(   
                         self.feed_forward_chunk_fusion,
@@ -442,10 +420,7 @@ class Layer(nn.Module):
                     self.seq_len_dim,
                     attention_output,
                 )
-                use_shared_expert = (
-                    not getattr(self.config, "disable_shared_expert", False)
-                    and (mode == 'mat' or mode == 'gen' or mode == 'ft')
-                )
+                use_shared_expert = mode == 'mat' or mode == 'gen' or mode == 'ft'
                 if use_shared_expert:
                     layer_output_fusion = apply_chunking_to_forward(  
                         self.feed_forward_chunk_fusion,
@@ -515,13 +490,7 @@ class EncoderStack(nn.Module):
 
         next_decoder_cache = () if use_cache else None
 
-        layer_count = self.config.num_hidden_layers
-        if getattr(self.config, "disable_fusion_transformer", False):
-            layer_count -= 1
-        if layer_count < 1:
-            raise ValueError("At least one expert layer is required")
-
-        for i in range(layer_count):
+        for i in range(self.config.num_hidden_layers):
             layer_module = self.layer[i]
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
