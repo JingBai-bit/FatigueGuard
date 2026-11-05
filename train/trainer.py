@@ -376,13 +376,6 @@ def run_subject_cv(
     args: argparse.Namespace,
     data: dict[str, np.ndarray],
     dataset_name: str,
-    *,
-    assignment_override: np.ndarray | None = None,
-    record_folds_override: list[dict] | None = None,
-    protocol: str | None = None,
-    require_two_class_validation_test: bool = False,
-    split_metadata: dict | None = None,
-    assignment_field: str = "temporal_fold",
 ) -> dict:
     validate_args(args)
     seed_everything(args.seed)
@@ -391,30 +384,16 @@ def run_subject_cv(
         json.dump(json_ready_args(args), handle, indent=2)
 
     subjects, y = data["subject"], data["y"]
-    if (assignment_override is None) != (record_folds_override is None):
-        raise ValueError(
-            "assignment_override and record_folds_override must be provided together"
-        )
-    if assignment_override is None:
-        assignment, record_folds = synchronized_temporal_folds(
-            data, args.num_folds, args.sequence_length,
-            args.purge_boundary_windows,
-        )
-    else:
-        assignment = np.asarray(assignment_override, dtype=np.int64)
-        if assignment.shape != (len(y),):
-            raise ValueError(
-                f"assignment_override shape={assignment.shape} does not match "
-                f"n_samples={len(y)}"
-            )
-        record_folds = record_folds_override
+    assignment, record_folds = synchronized_temporal_folds(
+        data, args.num_folds, args.sequence_length,
+        args.purge_boundary_windows,
+    )
     valid_subjects, invalid_subjects = protocol_validation_report(
         assignment,
         subjects,
         y,
         args.num_folds,
         args.validation_offset,
-        require_two_class_validation_test=require_two_class_validation_test,
     )
     selected_subjects = sorted(np.unique(subjects).astype(int).tolist())
     modes = requested_values(args.modalities, list(MODES))
@@ -425,7 +404,7 @@ def run_subject_cv(
         np.isin(subjects, np.asarray(selected_subjects)) & (assignment > 0)
     )
     split_description = {
-        "protocol": protocol or (
+        "protocol": (
             "synchronized subject-dependent temporal K-fold CV with global "
             "multimodal pretraining and subject-specific fine-tuning"
         ),
@@ -450,8 +429,6 @@ def run_subject_cv(
             np.sum(np.isin(subjects, np.asarray(selected_subjects)) & (assignment < 0))
         ),
     }
-    if split_metadata:
-        split_description.update(split_metadata)
     with (args.output_dir / "fold_assignments.json").open("w") as handle:
         json.dump(split_description, handle, indent=2)
     print(
@@ -502,29 +479,27 @@ def run_subject_cv(
         eeg_select, eog_select = scale_fold(data, selection_global)
         selection_dataset = FeatureDataset(eeg_select, eog_select, y)
         seed_everything(fold_seed)
-        selection_pretrained = None
-        if args.experiment != "scratch":
-            reuse_path = (
-                args.reuse_pretrain_dir / f"{fold_name}_selection_pretrain.pt"
-                if args.reuse_pretrain_dir else None
-            )
-            if reuse_path is not None:
-                if not reuse_path.exists():
-                    raise FileNotFoundError(
-                        f"Missing reused pre-training checkpoint: {reuse_path}"
-                    )
-                selection_pretrained = torch.load(
-                    reuse_path, map_location="cpu", weights_only=True
-                )["model"]
-                print(f"loaded reused pretrain: {reuse_path}", flush=True)
-            else:
-                selection_pretrained = pretrain(
-                    selection_dataset,
-                    selection_global,
-                    args,
-                    args.output_dir,
-                    f"{fold_name}_selection_",
+        reuse_path = (
+            args.reuse_pretrain_dir / f"{fold_name}_selection_pretrain.pt"
+            if args.reuse_pretrain_dir else None
+        )
+        if reuse_path is not None:
+            if not reuse_path.exists():
+                raise FileNotFoundError(
+                    f"Missing reused pre-training checkpoint: {reuse_path}"
                 )
+            selection_pretrained = torch.load(
+                reuse_path, map_location="cpu", weights_only=True
+            )["model"]
+            print(f"loaded reused pretrain: {reuse_path}", flush=True)
+        else:
+            selection_pretrained = pretrain(
+                selection_dataset,
+                selection_global,
+                args,
+                args.output_dir,
+                f"{fold_name}_selection_",
+            )
 
         selected_epochs: dict[tuple[int, str], tuple] = {}
         for subject in selected_subjects:
@@ -557,29 +532,27 @@ def run_subject_cv(
             eeg_final, eog_final = scale_fold(data, final_global)
             final_dataset = FeatureDataset(eeg_final, eog_final, y)
             seed_everything(fold_seed + 50000)
-            final_pretrained = None
-            if args.experiment != "scratch":
-                reuse_path = (
-                    args.reuse_pretrain_dir / f"{fold_name}_pretrain.pt"
-                    if args.reuse_pretrain_dir else None
-                )
-                if reuse_path is not None:
-                    if not reuse_path.exists():
-                        raise FileNotFoundError(
-                            f"Missing reused pre-training checkpoint: {reuse_path}"
-                        )
-                    final_pretrained = torch.load(
-                        reuse_path, map_location="cpu", weights_only=True
-                    )["model"]
-                    print(f"loaded reused pretrain: {reuse_path}", flush=True)
-                else:
-                    final_pretrained = pretrain(
-                        final_dataset,
-                        final_global,
-                        args,
-                        args.output_dir,
-                        f"{fold_name}_",
+            reuse_path = (
+                args.reuse_pretrain_dir / f"{fold_name}_pretrain.pt"
+                if args.reuse_pretrain_dir else None
+            )
+            if reuse_path is not None:
+                if not reuse_path.exists():
+                    raise FileNotFoundError(
+                        f"Missing reused pre-training checkpoint: {reuse_path}"
                     )
+                final_pretrained = torch.load(
+                    reuse_path, map_location="cpu", weights_only=True
+                )["model"]
+                print(f"loaded reused pretrain: {reuse_path}", flush=True)
+            else:
+                final_pretrained = pretrain(
+                    final_dataset,
+                    final_global,
+                    args,
+                    args.output_dir,
+                    f"{fold_name}_",
+                )
         else:
             final_dataset = selection_dataset
             final_pretrained = selection_pretrained
@@ -662,7 +635,7 @@ def run_subject_cv(
                 ):
                     prediction = {
                         "fold": fold_name,
-                        assignment_field: int(assignment[index]),
+                        "temporal_fold": int(assignment[index]),
                         "subject": int(subjects[index]),
                         "session": int(data["session"][index]),
                         "sequence_start": int(data["sequence_start"][index]),
@@ -720,7 +693,7 @@ def run_subject_cv(
         args.output_dir / "oof_predictions.csv",
         predictions,
         [
-            "fold", assignment_field, "subject", "session", "sequence_start",
+            "fold", "temporal_fold", "subject", "session", "sequence_start",
             *(["group_id"] if "group_id" in data else []),
             "mode", "target", "probability",
         ],
