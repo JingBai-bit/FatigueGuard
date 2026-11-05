@@ -27,7 +27,7 @@ pip install -r requirements.txt
 ```
 
 
-## Data Preparation
+## Configuration
 
 For convenient use across different datasets, we provide a unified data interface. Please convert each dataset into a NumPy `.npz` file containing the following arrays:
 
