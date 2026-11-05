@@ -15,7 +15,7 @@ PURGE_BOUNDARY_WINDOWS=0
 EXPERIMENT="full"
 MODALITIES="multi,eeg,eog"
 SELECTION_METRIC="acc"             # auroc, f1, acc, or composite
-PRETRAIN_EPOCHS=100
+PRETRAIN_EPOCHS=200
 FINETUNE_EPOCHS=100
 PATIENCE=20
 BATCH_SIZE=128
@@ -23,7 +23,7 @@ PRETRAIN_LR="1e-4"
 FINETUNE_LR="3e-4"
 WEIGHT_DECAY="0.05"
 FINETUNE_FRACTION="1.0"
-SEED=3407
+SEED=2026
 
 # 1: retrain on all non-test folds after epoch selection; 0: test the selected model directly.
 REFIT_NON_TEST=1
@@ -31,7 +31,7 @@ SAVE_CHECKPOINTS=1
 # 1: validate the NPZ interface and temporal folds without training.
 CHECK_DATA_ONLY=0
 
-GPU_ID="1"
+GPU_ID="0"
 DEVICE="cuda"                      # cuda, cuda:0, or cpu
 
 # ====================================================================
