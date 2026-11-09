@@ -13,6 +13,7 @@ VALIDATION_OFFSET=2
 PURGE_BOUNDARY_WINDOWS=0
 
 MODALITIES="multi,eeg,eog"
+MIXTURE_EXPERT_LAYERS=3
 SELECTION_METRIC="acc"             # auroc, f1, acc, or composite
 PRETRAIN_EPOCHS=200
 FINETUNE_EPOCHS=100
@@ -74,6 +75,7 @@ runner_args=(
   --validation-offset "$VALIDATION_OFFSET"
   --purge-boundary-windows "$PURGE_BOUNDARY_WINDOWS"
   --modalities "$MODALITIES"
+  --mixture-expert-layers "$MIXTURE_EXPERT_LAYERS"
   --selection-metric "$SELECTION_METRIC"
   --pretrain-epochs "$PRETRAIN_EPOCHS"
   --finetune-epochs "$FINETUNE_EPOCHS"
@@ -110,3 +112,4 @@ log_path="$run_dir/train_${run_stamp}.log"
 } | tee "$log_path"
 PYTHONUNBUFFERED=1 python "$script_dir/main.py" "${runner_args[@]}" \
   2>&1 | tee -a "$log_path"
+
