@@ -45,6 +45,8 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--purge-boundary-windows must be non-negative")
     if args.sequence_length < 1:
         raise ValueError("The input sequence length must be positive")
+    if args.mixture_expert_layers < 1:
+        raise ValueError("--mixture-expert-layers must be at least 1")
     if args.pretrain_epochs < 1 or args.finetune_epochs < 1:
         raise ValueError("Training epochs must be positive")
     if args.patience < 1 or args.batch_size < 1:
