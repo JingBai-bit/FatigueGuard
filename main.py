@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--validation-offset", type=int, default=2)
     parser.add_argument("--purge-boundary-windows", type=int, default=0)
     parser.add_argument("--modalities", default="multi,eeg,eog")
+    parser.add_argument("--mixture-expert-layers", type=int, default=3)
     parser.add_argument(
         "--selection-metric",
         choices=("auroc", "f1", "acc", "composite"),
