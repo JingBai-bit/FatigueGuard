@@ -38,6 +38,7 @@ OUTPUT_DIR="/path/to/experiment_results"
 NUM_FOLDS=5
 FOLDS="all"
 MODALITIES="multi,eeg,eog"
+MIXTURE_EXPERT_LAYERS=3
 GPU_ID="0"
 DEVICE="cuda"
 ```
