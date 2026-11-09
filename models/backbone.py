@@ -284,7 +284,7 @@ class Output(nn.Module):
         return hidden_states
 
 
-class Layer(nn.Module):
+class _TransformerLayer(nn.Module):
     def __init__(self, config, layer_idx):
         super().__init__()
         self.config = config
@@ -459,13 +459,26 @@ class Layer(nn.Module):
         layer_output = self.output(intermediate_output, attention_output)
         return layer_output
 
+class MixtureOfExpertsLayer(_TransformerLayer):
+    pass
+
+
+class FlexibleModalityInteractionModule(_TransformerLayer):
+    pass
+
+
 class EncoderStack(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList(
-            [Layer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
+        expert_layers = [
+            MixtureOfExpertsLayer(config, layer_idx)
+            for layer_idx in range(config.num_mixture_expert_layers)
+        ]
+        interaction_module = FlexibleModalityInteractionModule(
+            config, config.num_mixture_expert_layers
         )
+        self.layer = nn.ModuleList(expert_layers + [interaction_module])
         self.gradient_checkpointing = False
 
     def forward(
