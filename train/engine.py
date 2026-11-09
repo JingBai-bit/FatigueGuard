@@ -32,6 +32,7 @@ def model_config(
     output_hidden_states: bool,
     eeg_input_dim: int,
     eog_input_dim: int,
+    mixture_expert_layers: int,
 ) -> Blip2QFormerConfig:
     return Blip2QFormerConfig(
         if_DDP=False,
@@ -46,7 +47,8 @@ def model_config(
         hidden_size=64,
         intermediate_size=256,
         num_attention_heads=4,
-        num_hidden_layers=4,
+        num_hidden_layers=mixture_expert_layers + 1,
+        num_mixture_expert_layers=mixture_expert_layers,
         initializer_range=0.02,
         layer_norm_eps=1e-12,
         model_type="blip_2_qformer",
@@ -70,6 +72,7 @@ def pretrain(
         output_hidden_states=True,
         eeg_input_dim=dataset.eeg.shape[-1],
         eog_input_dim=dataset.eog.shape[-1],
+        mixture_expert_layers=args.mixture_expert_layers,
     )
     model = PretrainModel(
         config,
@@ -160,6 +163,7 @@ def build_finetune_model(
         output_hidden_states=False,
         eeg_input_dim=dataset.eeg.shape[-1],
         eog_input_dim=dataset.eog.shape[-1],
+        mixture_expert_layers=args.mixture_expert_layers,
     )
     model_mode = "eye" if mode == "eog" else mode
     model = FinetuneModel(
